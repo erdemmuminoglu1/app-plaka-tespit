@@ -86,13 +86,26 @@
                 if (!response.ok) { throw new Error("Cloud API Latency/Rate Limit Exception"); }
 
                 const responseText = await response.text();
-                const firstOpen = responseText.indexOf('{');
-                const lastClose = responseText.lastIndexOf('}');
+                
+                // 1. KATMAN: n8n'den gelen dış JSON zarfını çözüyoruz
+                const outerJson = JSON.parse(responseText);
+                let aiText = "";
+                if (Array.isArray(outerJson) && outerJson[0]?.text) {
+                    aiText = outerJson[0].text;
+                } else if (outerJson?.text) {
+                    aiText = outerJson.text;
+                } else {
+                    aiText = responseText;
+                }
+
+                // 2. KATMAN: Yapay zekanın kendi ürettiği saf JSON metnini cımbızlıyoruz
+                const firstOpen = aiText.indexOf('{');
+                const lastClose = aiText.lastIndexOf('}');
                 if (firstOpen === -1 || lastClose === -1) { throw new Error("JSON Parse Exception"); }
                 
-                const cleanJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
+                const cleanJson = JSON.parse(aiText.substring(firstOpen, lastClose + 1));
 
-                // Bulut Sunucusundan Gelen Gerçek Zamanlı Yanıt Dağıtımı
+                // Arayüz Dağıtımı ve Şartlı Dallanma
                 if(cleanJson.durum === "APP") {
                     resBadge.className = "badge bg-app";
                     resBadge.innerText = "🚨 STANDART DIŞI (APP) PLAKA";
@@ -109,8 +122,8 @@
                 resAciklamasi.innerText = cleanJson.aciklama || "-";
 
             } catch (error) {
-                // SEKONDER HAT: Ağ Kesintilerine Karşı Lokal Motor Katmanı
-                console.warn("Cloud pipeline pasif. Yedek lokal Edge-OCR motoru devreye alınıyor.");
+                // SEKONDER HAT: Ağ Kesintilerine Karşı Lokal Motor Katmanı (Failover)
+                console.warn("Cloud pipeline pasif veya veri hatası. Yedek lokal Edge-OCR motoru devreye alınıyor.");
                 
                 try {
                     const result = await Tesseract.recognize(file, 'eng');

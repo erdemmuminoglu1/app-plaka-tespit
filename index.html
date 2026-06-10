@@ -49,7 +49,6 @@
         button:hover { background-color: #3498db; }
         button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         
-        /* Sonuç Paneli Tasarımı */
         .result {
             margin-top: 25px;
             padding: 20px;
@@ -65,8 +64,8 @@
             color: white;
             margin-bottom: 10px;
         }
-        .bg-app { background-color: #e74c3c; } /* APP için Kırmızı */
-        .bg-standart { background-color: #2ecc71; } /* Standart için Yeşil */
+        .bg-app { background-color: #e74c3c; } 
+        .bg-standart { background-color: #2ecc71; } 
         .info-row { margin: 8px 0; font-size: 15px; }
         .info-label { font-weight: bold; color: #34495e; }
     </style>
@@ -112,7 +111,6 @@
             const formData = new FormData();
             formData.append('plaka_resmi', file);
 
-            // Ekranı yükleniyor moduna alıyoruz
             sonucKutusu.style.display = "block";
             sonucKutusu.style.backgroundColor = "#ebf5fb";
             resBadge.className = "badge";
@@ -124,7 +122,7 @@
             buton.disabled = true;
 
             try {
-                // Kendi n8n linkini buraya yapıştır kanka
+                // Kendi n8n linkini buraya yapıştır kanka (Test veya Production fark etmez)
                 const n8n_url = "https://erdemmumin.app.n8n.cloud/webhook-test/f6e89072-374b-4389-973d-914905f1bbbc"; 
 
                 const response = await fetch(n8n_url, {
@@ -132,16 +130,45 @@
                     body: formData
                 });
 
-                const rawData = await response.json();
-                
-                // Gemini'den gelen veriyi alıyoruz
-                // n8n bazen veriyi dizi içinde veya doğrudan text olarak dönebilir, güvenli okuma yapıyoruz:
-                const aiResult = rawData.text || rawData[0]?.text || rawData;
-                
-                // Gelen metni temiz JSON objesine çeviriyoruz
-                const cleanJson = JSON.parse(aiResult.replace(/```json|```/g, '').trim());
+                if (!response.ok) {
+                    throw new Error(`Ağ hatası: Sunucu ${response.status} kodu döndürdü.`);
+                }
 
-                // Ekrana yazdırma aşaması
+                // Veriyi ham metin olarak alıyoruz (Laf kalabalığı ihtimaline karşı)
+                const responseText = await response.text();
+                
+                let rawData;
+                try {
+                    rawData = JSON.parse(responseText);
+                } catch (e) {
+                    rawData = responseText;
+                }
+                
+                // n8n yapısına göre metni ayıklıyoruz
+                let aiResult = "";
+                if (typeof rawData === 'string') {
+                    aiResult = rawData;
+                } else if (Array.isArray(rawData) && rawData[0]?.text) {
+                    aiResult = rawData[0].text;
+                } else if (rawData?.text) {
+                    aiResult = rawData.text;
+                } else {
+                    aiResult = JSON.stringify(rawData);
+                }
+
+                // KURŞUN GEÇİRMEZ JSON AYIKLAYICI
+                // Metnin neresinde olursa olsun ilk '{' ve son '}' karakterleri arasını cımbızlıyoruz
+                const firstOpen = aiResult.indexOf('{');
+                const lastClose = aiResult.lastIndexOf('}');
+                
+                if (firstOpen === -1 || lastClose === -1) {
+                    throw new Error("Yapay zeka geçerli bir veri şablonu (JSON) üretemedi. Yanıt: " + aiResult.substring(0, 50));
+                }
+                
+                const cleanJsonStr = aiResult.substring(firstOpen, lastClose + 1);
+                const cleanJson = JSON.parse(cleanJsonStr);
+
+                // Ekrana yazdırma
                 if(cleanJson.durum === "APP") {
                     resBadge.className = "badge bg-app";
                     resBadge.innerText = "🚨 YASAKLI APP PLAKA";
@@ -152,15 +179,15 @@
                     sonucKutusu.style.backgroundColor = "#eafaf1";
                 }
 
-                resPlaka.innerText = cleanJson.plaka;
-                resGuven.innerText = cleanJson.guven_orani;
-                resAciklamasi.innerText = cleanJson.aciklama;
+                resPlaka.innerText = cleanJson.plaka || "-";
+                resGuven.innerText = cleanJson.guven_orani || "-";
+                resAciklamasi.innerText = cleanJson.aciklama || "-";
 
             } catch (error) {
                 resBadge.className = "badge";
                 resBadge.style.backgroundColor = "#7f8c8d";
                 resBadge.innerText = "❌ Hata Oluştu";
-                resAciklamasi.innerText = "Sistem yanıtı işleyemedi. Lütfen n8n akışının açık olduğunu ve Gemini modelinin yanıt döndüğünü kontrol edin.";
+                resAciklamasi.innerText = "Hata Detayı: " + error.message;
                 console.error(error);
             } finally {
                 buton.disabled = false;

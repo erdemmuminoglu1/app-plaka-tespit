@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APP Plaka Ayırt Etme Sistemi</title>
+    <style>
+        /* Sitemizin basit ve temiz görünmesi için renk ayarları */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 { color: #2c3e50; font-size: 24px; }
+        .upload-section { margin: 20px 0; }
+        button {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background-color: #3498db; }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none; /* İlk başta gizli olacak */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>APP Plaka Kontrol Sistemi</h1>
+        <p>Lütfen kontrol etmek istediğiniz plakanın fotoğrafını yükleyin.</p>
+        
+        <div class="upload-section">
+            <label for="plaka-resim" style="display:block; margin-bottom:10px; font-weight:bold;">Plaka Fotoğrafı Seçin:</label>
+            <input type="file" id="plaka-resim" accept="image/*" aria-required="true">
+        </div>
+
+        <button onclick="plakaKontrolEt()">Plakayı Analiz Et</button>
+
+        <div id="sonuc-kutusu" class="result"></div>
+    </div>
+
+    <script>
+        // Butona basıldığında şimdilik çalışacak geçici kod
+        function plakaKontrolEt() {
+            const dosyaGirdisi = document.getElementById('plaka-resim');
+            const sonucKutusu = document.getElementById('sonuc-kutusu');
+
+            if (dosyaGirdisi.files.length === 0) {
+                sonucKutusu.style.display = "block";
+                sonucKutusu.style.backgroundColor = "#f39c12";
+                sonucKutusu.style.color = "white";
+                sonucKutusu.innerText = "Lütfen önce bir fotoğraf seçin!";
+                return;
+            }
+
+            // Burası daha sonra n8n sistemine bağlanacak, şimdilik test amaçlı yazıldı
+            sonucKutusu.style.display = "block";
+            sonucKutusu.style.backgroundColor = "#d35400";
+            sonucKutusu.style.color = "white";
+            sonucKutusu.innerText = "Fotoğraf alındı. n8n ve Yapay Zeka bağlantısı bir sonraki adımda yapılacak...";
+        }
+    </script>
+
+</body>
+</html>

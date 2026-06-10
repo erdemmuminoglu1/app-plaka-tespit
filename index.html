@@ -3,91 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APP Plaka Ayırt Etme Sistemi</title>
+    <title>AI Tabanlı Plaka Denetim Sistemi</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 450px;
-            width: 100%;
-            margin: 20px;
-        }
-        h1 { color: #2c3e50; font-size: 24px; margin-bottom: 5px; }
-        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
-        .upload-section { 
-            margin: 20px 0; 
-            padding: 20px; 
-            border: 2px dashed #3498db; 
-            border-radius: 8px;
-            background-color: #ecf0f1;
-        }
-        button {
-            background-color: #2980b9;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; max-width: 460px; width: 100%; margin: 20px; }
+        h1 { color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: 700; }
+        .subtitle { color: #95a5a6; font-size: 13px; margin-bottom: 25px; letter-spacing: 0.5px; }
+        .upload-section { margin: 20px 0; padding: 25px; border: 2px dashed #3498db; border-radius: 8px; background-color: #f8fafc; transition: all 0.3s; }
+        button { background-color: #2980b9; color: white; border: none; padding: 14px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s; }
         button:hover { background-color: #3498db; }
         button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        
-        .result {
-            margin-top: 25px;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: left;
-            display: none;
-        }
-        .badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
+        .result { margin-top: 25px; padding: 20px; border-radius: 8px; text-align: left; display: none; border-left: 5px solid #34495e; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-weight: bold; color: white; margin-bottom: 12px; font-size: 13px; }
         .bg-app { background-color: #e74c3c; } 
         .bg-standart { background-color: #2ecc71; } 
-        .info-row { margin: 8px 0; font-size: 15px; }
-        .info-label { font-weight: bold; color: #34495e; }
+        .info-row { margin: 10px 0; font-size: 14px; line-height: 1.5; }
+        .info-label { font-weight: bold; color: #34495e; display: inline-block; width: 130px; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>APP Plaka Kontrol Sistemi</h1>
-        <p class="subtitle">AI & Bulut Tabanlı Standart Dışı Plaka Analizi</p>
+        <p class="subtitle">Bulut Entegrasyonlu Bilgisayarlı Görü Projesi</p>
         
         <div class="upload-section">
-            <label for="plaka-resim" style="display:block; margin-bottom:10px; font-weight:bold;">Plaka Fotoğrafı Seçin veya Çekin:</label>
+            <label for="plaka-resim" style="display:block; margin-bottom:12px; font-weight:600; color: #34495e;">Analiz Edilecek Görseli Seçin:</label>
             <input type="file" id="plaka-resim" accept="image/*">
         </div>
 
-        <button id="analiz-buton" onclick="plakaKontrolEt()">Plakayı Analiz Et</button>
+        <button id="analiz-buton" onclick="plakaKontrolEt()">Mimarisi Üzerinden Analiz Et</button>
 
         <div id="sonuc-kutusu" class="result">
             <div id="sonuc-badge" class="badge"></div>
-            <div class="info-row"><span class="info-label">Okunan Plaka:</span> <span id="res-plaka"></span></div>
-            <div class="info-row"><span class="info-label">Güven Oranı:</span> <span id="res-guven"></span></div>
-            <div class="info-row"><span class="info-label">Analiz Açıklaması:</span> <span id="res-aciklamasi"></span></div>
+            <div class="info-row"><span class="info-label">Okunan Veri:</span> <span id="res-plaka" style="font-family: monospace; font-weight: bold; font-size: 16px;"></span></div>
+            <div class="info-row"><span class="info-label">Güvenlik Skoru:</span> <span id="res-guven"></span></div>
+            <div class="info-row"><span class="info-label">Sistem Raporu:</span> <span id="res-aciklamasi" style="color: #555;"></span></div>
         </div>
     </div>
 
@@ -103,7 +55,7 @@
             const resAciklamasi = document.getElementById('res-aciklamasi');
 
             if (dosyaGirdisi.files.length === 0) {
-                alert("Lütfen önce bir fotoğraf seçin!");
+                alert("Lütfen analiz için geçerli bir görsel dosyası seçiniz.");
                 return;
             }
 
@@ -112,79 +64,41 @@
             const formData = new FormData();
             formData.append('plaka_resmi', file);
 
-            // Arayüzü Hazırla
+            // UI Başlatma Durumu
             sonucKutusu.style.display = "block";
-            sonucKutusu.style.backgroundColor = "#ebf5fb";
+            sonucKutusu.style.backgroundColor = "#f8fafc";
+            sonucKutusu.style.borderLeftColor = "#34495e";
             resBadge.className = "badge";
             resBadge.style.backgroundColor = "#34495e";
-            resBadge.innerText = "🔄 Yapay Zeka İnceliyor...";
-            resPlaka.innerText = "-";
+            resBadge.innerText = "🔄 Konvolüsyonel Ağ Analizi Başladı...";
+            resPlaka.innerText = "Yükleniyor...";
             resGuven.innerText = "-";
-            resAciklamasi.innerText = "Lütfen bekleyin, bulut mimarisi ve AI modeli görsel piksellerini analiz ediyor...";
+            resAciklamasi.innerText = "Görsel verisi bulut mimarisi ve derin öğrenme segmentasyon katmanlarına aktarılıyor...";
             buton.disabled = true;
 
-            // Yapay zekanın taklidini yapacak o muazzam akıllı sunum motoru
-            const calistirSunumModu = () => {
-                setTimeout(() => {
-                    // Eğer yüklenen dosya adında app, yasak, mühürsüz gibi kelimeler geçiyorsa APP raporu üret
-                    if (fileName.includes("app") || fileName.includes("yasak") || fileName.includes("modifiye") || fileName.includes("88755")) {
-                        resBadge.className = "badge bg-app";
-                        resBadge.innerText = "🚨 YASAKLI APP PLAKA";
-                        sonucKutusu.style.backgroundColor = "#fdf2e9";
-                        resPlaka.innerText = "34 APP 2026";
-                        resGuven.innerText = "%94.8";
-                        resAciklamasi.innerText = "Yapılan derinlemesine görsel analizde; karakterlerin standart TÜVTÜRK tipografisinden daha kalın (Bold) basıldığı, Beşiktaş/Fransız kalıp yazı şablonu kullanıldığı ve harf çevrelerinin çift kat siyah boyayla belirginleştirildiği tespit edilmiştir. Plaka, EGM standartlarına aykırı (APP) olarak sınıflandırılmıştır.";
-                    } else {
-                        // Geçmiyorsa standart temiz plaka raporu üret
-                        resBadge.className = "badge bg-standart";
-                        resBadge.innerText = "✅ YASAL STANDART PLAKA";
-                        sonucKutusu.style.backgroundColor = "#eafaf1";
-                        resPlaka.innerText = "16 TR 2026";
-                        resGuven.innerText = "%97.2";
-                        resAciklamasi.innerText = "Yapılan görsel analizde, karakterlerin resmi darphane basımı standart köşeli yazı tipinde olduğu, mavi TR şeridinin ve dalgalı emniyet mühür geometrisinin nizami olduğu tespit edilmiştir. Plaka yasal mevzuatlara tamamen uygundur.";
-                    }
-                    buton.disabled = false;
-                }, 2500); // 2.5 saniye yapay zeka düşünme efekti
-            };
-
             try {
-                // n8n sunucusuna gitmeyi dener
+                // PRIMER HAT: n8n Dağıtık Bulut Entegrasyonu Pipeline
                 const response = await fetch("https://erdemmumin.app.n8n.cloud/webhook/f6e89072-374b-4389-973d-914905f1bbbc", {
                     method: 'POST',
                     body: formData
                 });
 
-                if (!response.ok) { throw new Error("Google Kota Sınırı"); }
+                if (!response.ok) { throw new Error("Cloud API Latency/Rate Limit Exception"); }
 
                 const responseText = await response.text();
                 const firstOpen = responseText.indexOf('{');
                 const lastClose = responseText.lastIndexOf('}');
-                
-                if (firstOpen === -1 || lastClose === -1) { throw new Error("Format hatası"); }
+                if (firstOpen === -1 || lastClose === -1) { throw new Error("JSON Parse Exception"); }
                 
                 const cleanJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
 
-                // Eğer n8n ve google çalışırsa gerçek sonucu bas
+                // Bulut Sunucusundan Gelen Gerçek Zamanlı Yanıt Dağıtımı
                 if(cleanJson.durum === "APP") {
                     resBadge.className = "badge bg-app";
-                    resBadge.innerText = "🚨 YASAKLI APP PLAKA";
+                    resBadge.innerText = "🚨 STANDART DIŞI (APP) PLAKA tespiti";
+                    sonucKutusu.style.style.borderLeftColor = "#e74c3c";
                     sonucKutusu.style.backgroundColor = "#fdf2e9";
                 } else {
                     resBadge.className = "badge bg-standart";
-                    resBadge.innerText = "✅ YASAL STANDART PLAKA";
-                    sonucKutusu.style.backgroundColor = "#eafaf1";
-                }
-                resPlaka.innerText = cleanJson.plaka || "-";
-                resGuven.innerText = cleanJson.guven_orani || "-";
-                resAciklamasi.innerText = cleanJson.aciklama || "-";
-                buton.disabled = false;
-
-            } catch (error) {
-                // GOOGLE VEYA N8N ÇÖKERSE BURASI ÇAKTIRMADAN DEVREYE GİRER (HOCA ASLA HATAYI GÖRMEZ)
-                console.log("Sunum Modu Aktif Edildi.");
-                calistirSunumModu();
-            }
-        }
-    </script>
-</body>
-</html>
+                    resBadge.innerText = "✅ MEVZUATA UYGUN STANDART PLAKA";
+                    sonucKutusu.style.borderLeftColor = "#2ecc71";

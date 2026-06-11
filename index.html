@@ -1,161 +1,581 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Tabanlı Plaka Denetim Sistemi</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; max-width: 460px; width: 100%; margin: 20px; }
-        h1 { color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: 700; }
-        .subtitle { color: #95a5a6; font-size: 13px; margin-bottom: 25px; letter-spacing: 0.5px; }
-        .upload-section { margin: 20px 0; padding: 25px; border: 2px dashed #3498db; border-radius: 8px; background-color: #f8fafc; }
-        button { background-color: #2980b9; color: white; border: none; padding: 14px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s; }
-        button:hover { background-color: #3498db; }
-        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .result { margin-top: 25px; padding: 20px; border-radius: 8px; text-align: left; display: none; border-left: 5px solid #34495e; }
-        .badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-weight: bold; color: white; margin-bottom: 12px; font-size: 13px; }
-        .bg-app { background-color: #e74c3c; } 
-        .bg-standart { background-color: #2ecc71; } 
-        .info-row { margin: 10px 0; font-size: 14px; line-height: 1.5; }
-        .info-label { font-weight: bold; color: #34495e; display: inline-block; width: 130px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plaka Analiz — APP Dedektörü</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0b0e14;
+      --surface:   #131720;
+      --surface2:  #1c2333;
+      --border:    #252d3d;
+      --accent:    #3b7ef8;
+      --accent2:   #5b9bff;
+      --danger:    #f04d4d;
+      --success:   #2ecc71;
+      --warning:   #f5a623;
+      --text:      #e8eaf0;
+      --muted:     #6b7896;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Inter', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .shield {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), #1a3a7a);
+      border-radius: 8px 8px 14px 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    h1 {
+      font-family: var(--mono);
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+    h1 span { color: var(--accent2); }
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Main card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    /* ── Webhook config ── */
+    .config-bar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .config-bar label {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .config-bar input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .config-bar input:focus { border-color: var(--accent); }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      margin: 24px;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .25s, background .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(59, 126, 248, 0.06);
+    }
+    .drop-zone.has-image {
+      border-color: var(--accent);
+      padding: 0;
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon {
+      font-size: 2.4rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .drop-title {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .drop-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    #preview-img {
+      width: 100%; height: 260px;
+      object-fit: contain;
+      background: #000;
+      border-radius: 10px;
+      display: none;
+    }
+    .drop-zone.has-image .drop-empty { display: none; }
+    .drop-zone.has-image #preview-img { display: block; }
+
+    /* ── Buttons ── */
+    .btn-row {
+      padding: 0 24px 24px;
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 20px;
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Loading ── */
+    .loading-bar {
+      display: none;
+      padding: 0 24px 20px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .loading-bar.visible { display: flex; }
+    .loading-label {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 999px;
+      width: 0%;
+      animation: prog 2.4s ease-in-out infinite;
+    }
+    @keyframes prog {
+      0%   { width: 0%; margin-left: 0%; }
+      50%  { width: 70%; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+
+    /* ── Result panel ── */
+    #result-panel {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      animation: fadeUp .35s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .result-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Verdict badge */
+    .verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+    }
+    .verdict.app {
+      background: rgba(240, 77, 77, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(240, 77, 77, 0.35);
+    }
+    .verdict.standart {
+      background: rgba(46, 204, 113, 0.12);
+      color: var(--success);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+    .verdict .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    /* Data grid */
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .data-cell {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .data-cell .dcl {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .data-cell .dcv {
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .data-cell.full { grid-column: 1 / -1; }
+
+    /* Confidence bar */
+    .conf-bar-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .conf-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 1s ease;
+    }
+
+    /* Description */
+    .desc-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .desc-box strong { color: var(--text); }
+
+    /* ── Error ── */
+    .error-box {
+      display: none;
+      margin: 0 24px 24px;
+      background: rgba(240, 77, 77, 0.08);
+      border: 1px solid rgba(240, 77, 77, 0.3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.83rem;
+      color: var(--danger);
+      font-family: var(--mono);
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 32px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .data-grid { grid-template-columns: 1fr; }
+      .data-cell.full { grid-column: 1; }
+    }
+  </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>APP Plaka Kontrol Sistemi</h1>
-        <p class="subtitle">Bulut Entegrasyonlu Bilgisayarlı Görü Projesi</p>
-        
-        <div class="upload-section">
-            <label for="plaka-resim" style="display:block; margin-bottom:12px; font-weight:600; color: #34495e;">Analiz Edilecek Görseli Seçin:</label>
-            <input type="file" id="plaka-resim" accept="image/*">
-        </div>
+<header>
+  <div class="logo-row">
+    <div class="shield">🛡️</div>
+    <h1>Plaka<span>Analiz</span></h1>
+  </div>
+  <p class="subtitle">Yapay Zeka Destekli APP Plaka Dedektörü</p>
+</header>
 
-        <button id="analiz-buton" onclick="plakaKontrolEt()">Mimarisi Üzerinden Analiz Et</button>
+<div class="card">
 
-        <div id="sonuc-kutusu" class="result">
-            <div id="sonuc-badge" class="badge"></div>
-            <div class="info-row"><span class="info-label">Okunan Veri:</span> <span id="res-plaka" style="font-family: monospace; font-weight: bold; font-size: 16px;"></span></div>
-            <div class="info-row"><span class="info-label">Güvenlik Skoru:</span> <span id="res-guven"></span></div>
-            <div class="info-row"><span class="info-label">Sistem Raporu:</span> <span id="res-aciklamasi" style="color: #555;"></span></div>
-        </div>
+  <!-- Webhook URL config -->
+  <div class="config-bar">
+    <label>Webhook URL</label>
+    <input type="text" id="webhook-url"
+      placeholder="https://your-n8n.cloud/webhook/f6e89072-..."
+      value="" />
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept="image/*" />
+    <div class="drop-empty">
+      <span class="drop-icon">📸</span>
+      <p class="drop-title">Plaka fotoğrafı yükle</p>
+      <p class="drop-hint">Sürükle & bırak ya da tıklayarak seç · JPG, PNG, WEBP</p>
+    </div>
+    <img id="preview-img" alt="Plaka önizleme" />
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="btn btn-ghost" id="clear-btn">Temizle</button>
+    <button class="btn btn-primary" id="analyze-btn" disabled>🔍 Analiz Et</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-bar" id="loading-bar">
+    <span class="loading-label">Gemini analiz ediyor...</span>
+    <div class="progress-track"><div class="progress-fill"></div></div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Result -->
+  <div id="result-panel">
+    <div class="result-header">
+      <span class="result-title">Analiz Sonucu</span>
+      <div class="verdict" id="verdict-badge">
+        <span class="dot"></span>
+        <span id="verdict-text">—</span>
+      </div>
     </div>
 
-    <script>
-        async function plakaKontrolEt() {
-            const dosyaGirdisi = document.getElementById('plaka-resim');
-            const sonucKutusu = document.getElementById('sonuc-kutusu');
-            const buton = document.getElementById('analiz-buton');
-            
-            const resBadge = document.getElementById('sonuc-badge');
-            const resPlaka = document.getElementById('res-plaka');
-            const resGuven = document.getElementById('res-guven');
-            const resAciklamasi = document.getElementById('res-aciklamasi');
+    <div class="data-grid">
+      <div class="data-cell">
+        <div class="dcl">Plaka</div>
+        <div class="dcv" id="r-plaka">—</div>
+      </div>
+      <div class="data-cell">
+        <div class="dcl">Güven Oranı</div>
+        <div class="dcv" id="r-guven">—</div>
+        <div class="conf-bar-track">
+          <div class="conf-bar-fill" id="r-guven-bar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="data-cell full">
+        <div class="dcl">Teknik Analiz</div>
+        <div class="desc-box" id="r-aciklama">—</div>
+      </div>
+    </div>
+  </div>
 
-            if (dosyaGirdisi.files.length === 0) {
-                alert("Lütfen analiz için geçerli bir görsel dosyası seçiniz.");
-                return;
-            }
+</div>
 
-            const file = dosyaGirdisi.files[0];
-            const fileName = file.name.toLowerCase();
-            const formData = new FormData();
-            formData.append('plaka_resmi', file);
+<footer>Gemini 2.5 Flash · n8n Webhook Entegrasyonu</footer>
 
-            // Arayüzü Yükleniyor Moduna Al
-            sonucKutusu.style.display = "block";
-            sonucKutusu.style.backgroundColor = "#f8fafc";
-            sonucKutusu.style.borderLeftColor = "#34495e";
-            resBadge.className = "badge";
-            resBadge.style.backgroundColor = "#34495e";
-            resBadge.innerText = "🔄 Konvolüsyonel Ağ Analizi Başladı...";
-            resPlaka.innerText = "Yükleniyor...";
-            resGuven.innerText = "-";
-            resAciklamasi.innerText = "Görsel verisi bulut mimarisi ve derin öğrenme segmentasyon katmanlarına aktarılıyor...";
-            buton.disabled = true;
+<script>
+  const dropZone   = document.getElementById('drop-zone');
+  const fileInput  = document.getElementById('file-input');
+  const previewImg = document.getElementById('preview-img');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const clearBtn   = document.getElementById('clear-btn');
+  const loadingBar = document.getElementById('loading-bar');
+  const errorBox   = document.getElementById('error-box');
+  const resultPanel= document.getElementById('result-panel');
+  const webhookUrl = document.getElementById('webhook-url');
 
-            // [LOKAL OCR OPTİMİZASYONU]: Boşlukları koruyarak tam plakayı (48 AZ 518) okuması için güncellendi
-            let yerelPlakaYazisi = "";
-            try {
-                const ocrResult = await Tesseract.recognize(file, 'eng');
-                let temizleme = ocrResult.data.text.replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-                if (temizleme.length >= 4) { yerelPlakaYazisi = temizleme.toUpperCase(); }
-            } catch(e) { console.log("Lokal motor hazır."); }
+  let selectedFile = null;
 
-            try {
-                // n8n Webhook Bağlantısı
-                const response = await fetch("https://erdemmumin.app.n8n.cloud/webhook/f6e89072-374b-4389-973d-914905f1bbbc", {
-                    method: 'POST',
-                    body: formData
-                });
+  /* ── Drag & drop ── */
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) setFile(f);
+  });
 
-                if (!response.ok) { throw new Error("Cloud Pipeline Kesintisi"); }
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
 
-                const responseText = await response.text();
-                const outerJson = JSON.parse(responseText);
-                
-                let aiText = "";
-                // 🎯 Paylaştığın derin JSON yapısını (content.parts[0].text) çözen tam uyumlu haritalama katmanı
-                if (Array.isArray(outerJson) && outerJson[0]?.content?.parts?.[0]?.text) {
-                    aiText = outerJson[0].content.parts[0].text;
-                } else if (outerJson?.content?.parts?.[0]?.text) {
-                    aiText = outerJson.content.parts[0].text;
-                } else if (Array.isArray(outerJson) && outerJson[0]?.text) {
-                    aiText = outerJson[0].text;
-                } else if (outerJson?.text) {
-                    aiText = outerJson.text;
-                } else {
-                    aiText = responseText;
-                }
+  function setFile(f) {
+    selectedFile = f;
+    const url = URL.createObjectURL(f);
+    previewImg.src = url;
+    dropZone.classList.add('has-image');
+    analyzeBtn.disabled = false;
+    hideResult(); hideError();
+  }
 
-                // Yapay zekanın ürettiği iç JSON dizesini cımbızla ayıklama
-                const firstOpen = aiText.indexOf('{');
-                const lastClose = aiText.lastIndexOf('}');
-                if (firstOpen === -1 || lastClose === -1) { throw new Error("Parse hatası"); }
-                
-                const cleanJson = JSON.parse(aiText.substring(firstOpen, lastClose + 1));
+  clearBtn.addEventListener('click', () => {
+    selectedFile = null;
+    fileInput.value = '';
+    previewImg.src = '';
+    dropZone.classList.remove('has-image');
+    analyzeBtn.disabled = true;
+    hideResult(); hideError();
+  });
 
-                // Arayüz Durum Yönetimi
-                if(cleanJson.durum === "APP" || fileName.includes("app") || fileName.includes("yasak") || fileName.includes("88755")) {
-                    resBadge.className = "badge bg-app";
-                    resBadge.innerText = "🚨 STANDART DIŞI (APP) PLAKA";
-                    sonucKutusu.style.borderLeftColor = "#e74c3c";
-                    sonucKutusu.style.backgroundColor = "#fdf2e9";
-                } else {
-                    resBadge.className = "badge bg-standart";
-                    resBadge.innerText = "✅ MEVZUATA UYGUN STANDART PLAKA";
-                    sonucKutusu.style.borderLeftColor = "#2ecc71";
-                    sonucKutusu.style.backgroundColor = "#eafaf1";
-                }
+  /* ── Analyze ── */
+  analyzeBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
 
-                // Plakayı tam gösterme ve koruma katmanı
-                resPlaka.innerText = cleanJson.plaka || yerelPlakaYazisi || "48 AZ 518";
-                resGuven.innerText = cleanJson.guven_orani || "%98.5";
-                resAciklamasi.innerText = cleanJson.aciklama || "Görsel nesne mimari üzerinden çözümlenerek başarıyla raporlanmıştır.";
+    const url = webhookUrl.value.trim();
+    if (!url) { showError('Lütfen n8n webhook URL\'ini girin.'); return; }
 
-            } catch (error) {
-                // Sunucu kota/bağlantı hatası verirse devreye giren akıllı Edge-Failover Yapısı
-                if (fileName.includes("app") || fileName.includes("yasak") || fileName.includes("88755") || yerelPlakaYazisi.includes("AZ")) {
-                    resBadge.className = "badge bg-app";
-                    resBadge.innerText = "🚨 STANDART DIŞI (APP) PLAKA";
-                    sonucKutusu.style.borderLeftColor = "#e74c3c";
-                    sonucKutusu.style.backgroundColor = "#fdf2e9";
-                    resAciklamasi.innerText = "[Edge Modu]: Karakter morfolojisi segmentasyon sınırlarının dışında tespit edilmiştir. Kalın karakter (Bold) geometrisi sebebiyle nesne, EGM standart dışı plaka (APP) sınıflandırması ile eşleşmiştir.";
-                } else {
-                    resBadge.className = "badge bg-standart";
-                    resBadge.innerText = "✅ MEVZUATA UYGUN STANDART PLAKA";
-                    sonucKutusu.style.borderLeftColor = "#2ecc71";
-                    sonucKutusu.style.backgroundColor = "#eafaf1";
-                    resAciklamasi.innerText = "[Edge Modu]: Taranan karakter tipografisinin resmi darphane standartlarındaki nizami font kalınlığı parametreleri ile tam uyum sağladığı doğrulanmıştır.";
-                }
-                resPlaka.innerText = yerelPlakaYazisi || "48 AZ 518";
-                resGuven.innerText = "%96.2 (Lokal Doğrulama)";
-            } finally {
-                buton.disabled = false;
-            }
-        }
-    </script>
+    setLoading(true);
+    hideResult(); hideError();
+
+    try {
+      const formData = new FormData();
+      // n8n binary field adı: plaka_resmi
+      formData.append('plaka_resmi', selectedFile, selectedFile.name);
+
+      const res = await fetch(url, { method: 'POST', body: formData });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+      const data = await res.json();
+
+      // n8n returns: { text: "{ durum: ..., plaka: ..., ... }" }
+      let raw = data.text ?? JSON.stringify(data);
+      // Strip possible markdown fences
+      raw = raw.replace(/```json|```/g, '').trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        // If the model returned extra text, try extracting JSON
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+        else throw new Error('AI yanıtı JSON olarak ayrıştırılamadı.');
+      }
+
+      showResult(parsed);
+    } catch (err) {
+      showError(err.message || 'Bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  /* ── UI helpers ── */
+  function setLoading(on) {
+    loadingBar.classList.toggle('visible', on);
+    analyzeBtn.disabled = on;
+  }
+
+  function showError(msg) {
+    errorBox.textContent = '⚠ ' + msg;
+    errorBox.style.display = 'block';
+  }
+  function hideError() { errorBox.style.display = 'none'; }
+
+  function showResult(d) {
+    resultPanel.style.display = 'block';
+
+    const badge = document.getElementById('verdict-badge');
+    const vtext = document.getElementById('verdict-text');
+    const durum = (d.durum || '').toUpperCase().trim();
+
+    vtext.textContent = durum;
+    badge.className = 'verdict ' + (durum === 'APP' ? 'app' : 'standart');
+
+    document.getElementById('r-plaka').textContent = d.plaka || '—';
+
+    const guven = d.guven_orani || '—';
+    document.getElementById('r-guven').textContent = guven;
+
+    // Parse confidence percentage for bar
+    const pct = parseFloat(guven.replace('%', '').replace(',', '.'));
+    if (!isNaN(pct)) {
+      setTimeout(() => {
+        document.getElementById('r-guven-bar').style.width = Math.min(pct, 100) + '%';
+      }, 80);
+    }
+
+    document.getElementById('r-aciklama').innerHTML =
+      (d.aciklama || '—').replace(/\n/g, '<br>');
+  }
+
+  function hideResult() {
+    resultPanel.style.display = 'none';
+    document.getElementById('r-guven-bar').style.width = '0%';
+  }
+</script>
 </body>
 </html>

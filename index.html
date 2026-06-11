@@ -511,18 +511,33 @@
       const data = await res.json();
 
       // n8n returns: { text: "{ durum: ..., plaka: ..., ... }" }
-      let raw = data.text ?? JSON.stringify(data);
-      // Strip possible markdown fences
-      raw = raw.replace(/```json|```/g, '').trim();
+      // n8n may return { text: "..." } or raw array — handle both
+      let raw = '';
+      if (typeof data === 'string') {
+        raw = data;
+      } else if (data.text) {
+        raw = data.text;
+      } else if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
+        raw = data[0].content.parts[0].text;
+      } else {
+        raw = JSON.stringify(data);
+      }
+
+      // Strip markdown code fences (```json ... ``` or ``` ... ```)
+      raw = raw.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
 
       let parsed;
       try {
         parsed = JSON.parse(raw);
       } catch {
-        // If the model returned extra text, try extracting JSON
+        // Last resort: extract first { ... } block
         const match = raw.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error('AI yanıtı JSON olarak ayrıştırılamadı.');
+        if (match) {
+          try { parsed = JSON.parse(match[0]); }
+          catch { throw new Error('AI yanıtı JSON olarak ayrıştırılamadı. Ham: ' + raw.slice(0, 120)); }
+        } else {
+          throw new Error('AI yanıtı JSON olarak ayrıştırılamadı. Ham: ' + raw.slice(0, 120));
+        }
       }
 
       showResult(parsed);

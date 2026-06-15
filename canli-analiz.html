@@ -176,6 +176,47 @@
   .cam-wrap.flash-red { box-shadow: inset 0 0 0 4px var(--red); }
   .cam-wrap.flash-green { box-shadow: inset 0 0 0 4px var(--green); }
 
+  /* Capture flash (white blink) */
+  .capture-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 25;
+    transition: opacity 0.05s;
+  }
+  .capture-flash.blink { opacity: 0.55; }
+
+  /* Thumbnail preview */
+  .thumb-preview {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    z-index: 20;
+    width: 80px;
+    height: 60px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    overflow: hidden;
+    display: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,.7);
+  }
+  .thumb-preview.show { display: block; animation: thumbIn .15s ease; }
+  @keyframes thumbIn { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+  .thumb-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(59,126,248,.85);
+    font-family: var(--mono);
+    font-size: 8px;
+    color: #fff;
+    text-align: center;
+    padding: 2px 0;
+    letter-spacing: 1px;
+  }
+
   /* ── START OVERLAY ── */
   .start-overlay {
     position: absolute;
@@ -237,6 +278,7 @@
   }
   .result-badge.app { background: rgba(240,77,77,.2); color: var(--red); border: 1px solid var(--red); }
   .result-badge.std { background: rgba(0,217,126,.15); color: var(--green); border: 1px solid var(--green); }
+  .result-badge.blr { background: rgba(245,166,35,.15); color: var(--yellow); border: 1px solid var(--yellow); }
 
   .confidence-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .confidence-lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; white-space: nowrap; }
@@ -309,10 +351,12 @@
   @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
   .log-item.app { border-left-color: var(--red); }
   .log-item.std { border-left-color: var(--green); }
+  .log-item.blr { border-left-color: var(--yellow); }
   .log-plate { font-family: var(--mono); font-size: 13px; color: #fff; letter-spacing: 2px; flex: 1; }
   .log-status { font-size: 10px; font-family: var(--mono); padding: 3px 8px; border-radius: 3px; }
   .log-item.app .log-status { background: rgba(240,77,77,.2); color: var(--red); }
   .log-item.std .log-status { background: rgba(0,217,126,.15); color: var(--green); }
+  .log-item.blr .log-status { background: rgba(245,166,35,.15); color: var(--yellow); }
   .log-time { font-size: 10px; color: var(--dim); font-family: var(--mono); }
   .log-conf { font-size: 10px; color: var(--dim); font-family: var(--mono); }
 
@@ -418,6 +462,11 @@
   </div>
 
   <div class="queue-badge" id="queueBadge">KUYRUK: 0</div>
+  <div class="capture-flash" id="captureFlash"></div>
+  <div class="thumb-preview" id="thumbPreview">
+    <img id="thumbImg" src="" alt="">
+    <div class="thumb-label">YAKALANDI</div>
+  </div>
 
   <!-- START OVERLAY -->
   <div class="start-overlay" id="startOverlay">
@@ -543,6 +592,20 @@ function captureFrame() {
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
 
+  // Show capture flash
+  const flash = document.getElementById('captureFlash');
+  flash.classList.add('blink');
+  setTimeout(() => flash.classList.remove('blink'), 120);
+
+  // Show thumbnail preview
+  const thumbUrl = canvas.toDataURL('image/jpeg', 0.5);
+  const thumb = document.getElementById('thumbPreview');
+  const thumbImg = document.getElementById('thumbImg');
+  thumbImg.src = thumbUrl;
+  thumb.classList.add('show');
+  if (thumb._hideTimer) clearTimeout(thumb._hideTimer);
+  thumb._hideTimer = setTimeout(() => thumb.classList.remove('show'), 2500);
+
   canvas.toBlob(blob => {
     if (!blob) return;
     queue.push({ blob, time: new Date() });
@@ -623,26 +686,42 @@ function processResult(raw, captureTime) {
     const parsed = JSON.parse(text.slice(s, e + 1));
 
     const durum = (parsed.durum || '').toUpperCase().trim();
-    const plaka = parsed.plaka || '?';
+    const plaka = (parsed.plaka || '').trim();
     const guven = (parsed.guven_orani || '').replace('%', '').replace(',', '.').trim();
     const aciklama = parsed.aciklama || '';
     const pct = Math.min(100, parseFloat(guven) || 0);
-    const isApp = durum === 'APP';
 
-    // Update stats
-    stats.total++;
-    if (isApp) stats.app++; else stats.std++;
-    document.getElementById('statTotal').textContent = stats.total;
-    document.getElementById('statApp').textContent = stats.app;
-    document.getElementById('statStd').textContent = stats.std;
+    // Plaka bulunamadı mı? (boş, sadece tire/soru işareti, veya "YOK"/"BULUNAMADI" içeriyor)
+    const plakaYok = !plaka || /^[-?]+$/.test(plaka) || /YOK|BULUNAMADI|TESPIT|GÖRÜNM/i.test(plaka);
+    // Belirsiz mi? (güven düşük VEYA plaka yok)
+    const isBelirsiz = plakaYok || pct < 60;
+    const isApp = !isBelirsiz && durum === 'APP';
+    const plakaGoster = plakaYok ? '— PLAKA YOK —' : plaka;
+
+    // Update stats (belirsiz sayılmaz)
+    if (!isBelirsiz) {
+      stats.total++;
+      if (isApp) stats.app++; else stats.std++;
+      document.getElementById('statTotal').textContent = stats.total;
+      document.getElementById('statApp').textContent = stats.app;
+      document.getElementById('statStd').textContent = stats.std;
+    }
 
     // Result card
     const card = document.getElementById('resultCard');
     card.classList.add('show');
-    document.getElementById('resultPlaka').textContent = plaka;
+    document.getElementById('resultPlaka').textContent = plakaGoster;
     const badge = document.getElementById('resultBadge');
-    badge.textContent = isApp ? '🚨 APP PLAKA' : '✅ STANDART';
-    badge.className = 'result-badge ' + (isApp ? 'app' : 'std');
+    if (isBelirsiz) {
+      badge.textContent = '⚠ BELİRSİZ';
+      badge.className = 'result-badge blr';
+    } else if (isApp) {
+      badge.textContent = '🚨 APP PLAKA';
+      badge.className = 'result-badge app';
+    } else {
+      badge.textContent = '✅ STANDART';
+      badge.className = 'result-badge std';
+    }
     document.getElementById('confBar').style.width = pct + '%';
     document.getElementById('confBar').style.background = pct > 80 ? 'var(--green)' : pct > 60 ? 'var(--yellow)' : 'var(--red)';
     document.getElementById('confVal').textContent = '%' + pct.toFixed(1);
@@ -650,7 +729,10 @@ function processResult(raw, captureTime) {
 
     // Camera overlay
     const camWrap = document.getElementById('camWrap');
-    if (isApp) {
+    if (isBelirsiz) {
+      showCamBadge('ana', '⚠ BELİRSİZ — ' + (plakaYok ? 'Plaka bulunamadı' : '%' + pct.toFixed(0) + ' güven'));
+      camWrap.className = 'cam-wrap';
+    } else if (isApp) {
       showCamBadge('app', '🚨 APP PLAKA: ' + plaka);
       camWrap.className = 'cam-wrap flash-red';
     } else {
@@ -659,8 +741,8 @@ function processResult(raw, captureTime) {
     }
     setTimeout(() => { camWrap.className = 'cam-wrap'; hideCamBadge(); }, 3000);
 
-    // Add to log
-    addLogItem(plaka, isApp, captureTime, pct);
+    // Add to log (belirsiz de göster ama farklı renk)
+    addLogItem(plakaGoster, isApp, isBelirsiz, captureTime, pct);
 
   } catch(err) {
     showCamBadge('ana', '⚠ YANIT HATASI');
@@ -669,7 +751,7 @@ function processResult(raw, captureTime) {
 }
 
 // ── LOG ──
-function addLogItem(plaka, isApp, time, pct) {
+function addLogItem(plaka, isApp, isBelirsiz, time, pct) {
   const list = document.getElementById('logList');
   const empty = document.getElementById('logEmpty');
   if (empty) empty.remove();
@@ -678,11 +760,14 @@ function addLogItem(plaka, isApp, time, pct) {
   const mm = time.getMinutes().toString().padStart(2,'0');
   const ss = time.getSeconds().toString().padStart(2,'0');
 
+  const cls = isBelirsiz ? 'blr' : isApp ? 'app' : 'std';
+  const lbl = isBelirsiz ? 'BELİRSİZ' : isApp ? 'APP' : 'STANDART';
+
   const el = document.createElement('div');
-  el.className = 'log-item ' + (isApp ? 'app' : 'std');
+  el.className = 'log-item ' + cls;
   el.innerHTML = `
     <div class="log-plate">${plaka}</div>
-    <div class="log-status">${isApp ? 'APP' : 'STANDART'}</div>
+    <div class="log-status">${lbl}</div>
     <div class="log-conf">%${pct.toFixed(0)}</div>
     <div class="log-time">${hh}:${mm}:${ss}</div>
   `;

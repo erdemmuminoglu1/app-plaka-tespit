@@ -3,15 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Canlı Plaka Denetim</title>
+  <title>Canlı Plaka Denetim Sistemi</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0b0e14;
-      --surface: #131720;
-      --border: #252d3d;
+      --bg: #06080d;
+      --surface: #11151f;
+      --surface2: #1a2030;
+      --border: #232b3d;
       --accent: #3b7ef8;
+      --accent2: #5b9bff;
       --danger: #f04d4d;
       --success: #2ecc71;
+      --warning: #f5a623;
       --muted: #6b7896;
       --text: #e8eaf0;
     }
@@ -22,6 +26,7 @@
       overflow: hidden;
       font-family: 'Inter', sans-serif;
       color: var(--text);
+      -webkit-tap-highlight-color: transparent;
     }
 
     #app {
@@ -35,55 +40,147 @@
       height: 100%;
       object-fit: cover;
       display: block;
+      filter: contrast(1.05) saturate(0.95);
+    }
+
+    /* Hafif grid overlay - teknik hissiyat */
+    #grid-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      background-image:
+        linear-gradient(rgba(91,155,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(91,155,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mix-blend-mode: screen;
+      opacity: 0.5;
     }
 
     /* Renkli sınır overlay */
     #border-overlay {
       position: absolute;
       inset: 0;
-      border: 10px solid transparent;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      border: 8px solid transparent;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
       pointer-events: none;
       z-index: 10;
     }
     #border-overlay.app {
       border-color: var(--danger);
-      box-shadow: inset 0 0 60px rgba(240,77,77,0.5);
-      animation: pulse-red 1s ease-in-out infinite;
+      box-shadow: inset 0 0 70px rgba(240,77,77,0.45);
+      animation: pulse-red 0.9s ease-in-out infinite;
     }
     #border-overlay.standart {
       border-color: var(--success);
-      box-shadow: inset 0 0 40px rgba(46,204,113,0.35);
+      box-shadow: inset 0 0 45px rgba(46,204,113,0.3);
     }
     @keyframes pulse-red {
       0%, 100% { border-color: var(--danger); }
       50% { border-color: #ff8a8a; }
     }
 
-    /* Üst durum çubuğu */
+    /* ── Hedef çerçevesi (viewfinder) ── */
+    #viewfinder {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -55%);
+      width: min(82vw, 420px);
+      height: min(40vw, 200px);
+      z-index: 8;
+      pointer-events: none;
+    }
+    .vf-corner {
+      position: absolute;
+      width: 28px; height: 28px;
+      border: 3px solid var(--accent2);
+      opacity: 0.85;
+      transition: border-color 0.25s ease;
+    }
+    .vf-tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+    .vf-tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+    .vf-bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+    .vf-br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+
+    #viewfinder.app .vf-corner { border-color: var(--danger); }
+    #viewfinder.standart .vf-corner { border-color: var(--success); }
+
+    #vf-label {
+      position: absolute;
+      bottom: -28px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    /* Tarama çizgisi animasyonu */
+    #scan-line {
+      position: absolute;
+      left: 4%; right: 4%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+      top: 0;
+      opacity: 0;
+      box-shadow: 0 0 10px var(--accent2);
+    }
+    #scan-line.active {
+      opacity: 1;
+      animation: scan-sweep 1.1s ease-in-out infinite;
+    }
+    @keyframes scan-sweep {
+      0%   { top: 4%; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: 92%; opacity: 0; }
+    }
+
+    /* ── Üst durum çubuğu ── */
     #top-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
-      padding: 14px 16px;
+      padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.75), transparent);
+      z-index: 20;
+    }
+    #top-bar-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(180deg, rgba(0,0,0,0.65), transparent);
-      z-index: 20;
     }
     #top-bar .title {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    #top-bar .title span { color: #5b9bff; }
+    #top-bar .title span.brand-2 { color: var(--accent2); }
+    #live-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
 
+    #status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     #status-dot {
-      width: 10px; height: 10px;
+      width: 9px; height: 9px;
       border-radius: 50%;
       background: var(--muted);
       box-shadow: 0 0 8px var(--muted);
-      transition: all 0.3s ease;
+      transition: all 0.25s ease;
+      flex-shrink: 0;
     }
     #status-dot.scanning {
       background: var(--accent);
@@ -94,30 +191,101 @@
     #status-dot.standart { background: var(--success); box-shadow: 0 0 12px var(--success); }
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-    /* Alt bilgi kartı */
+    /* İstatistik çubuğu */
+    #stats-bar {
+      display: flex;
+      gap: 8px;
+    }
+    .stat-chip {
+      flex: 1;
+      background: rgba(17,21,31,0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      backdrop-filter: blur(6px);
+      text-align: center;
+    }
+    .stat-chip .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 1.05rem;
+      line-height: 1.1;
+    }
+    .stat-chip .lbl {
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 2px;
+    }
+    .stat-chip.app-stat .num { color: #ff8a8a; }
+    .stat-chip.std-stat .num { color: #6df0a3; }
+
+    /* ── Tespit geçmişi şeridi ── */
+    #log-strip {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 158px;
+      z-index: 18;
+      display: flex;
+      gap: 8px;
+      padding: 0 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #log-strip::-webkit-scrollbar { display: none; }
+    .log-chip {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(17,21,31,0.78);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 12px 6px 8px;
+      backdrop-filter: blur(6px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      white-space: nowrap;
+      animation: chip-in 0.3s ease;
+    }
+    @keyframes chip-in {
+      from { opacity: 0; transform: scale(0.85) translateY(6px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .log-chip .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .log-chip.app .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+    .log-chip.standart .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .log-chip .time { color: var(--muted); }
+
+    /* ── Alt bilgi kartı ── */
     #info-card {
       position: absolute;
       bottom: 0; left: 0; right: 0;
-      padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
-      background: linear-gradient(0deg, rgba(0,0,0,0.85), rgba(0,0,0,0.4) 70%, transparent);
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      background: linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,0,0,0.5) 75%, transparent);
       z-index: 20;
-      transition: transform 0.3s ease;
     }
 
     #verdict-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 10px;
       margin-bottom: 8px;
     }
     #verdict-badge {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 800;
-      font-size: 1.1rem;
+      font-size: 1rem;
       letter-spacing: 0.05em;
-      padding: 4px 14px;
+      padding: 5px 14px;
       border-radius: 999px;
-      background: rgba(107,120,150,0.2);
+      background: rgba(107,120,150,0.15);
       border: 1px solid var(--border);
       color: var(--muted);
     }
@@ -131,40 +299,48 @@
       color: #6df0a3;
       border-color: rgba(46,204,113,0.4);
     }
+    #conf-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(107,120,150,0.1);
+    }
 
     #plaka-text {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1.6rem;
+      font-size: 1.7rem;
       font-weight: 800;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
     }
 
     #aciklama-text {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--muted);
-      line-height: 1.4;
-      max-height: 3.6em;
+      line-height: 1.45;
+      max-height: 3.2em;
       overflow: hidden;
-      margin-top: 4px;
+      margin-top: 5px;
     }
 
-    /* Kontrol butonları */
+    /* ── Kontrol butonları ── */
     #controls {
       position: absolute;
-      bottom: calc(env(safe-area-inset-bottom) + 16px);
-      right: 16px;
+      top: calc(14px + env(safe-area-inset-top));
+      right: 14px;
       z-index: 25;
       display: flex;
-      flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
     .ctrl-btn {
-      width: 52px; height: 52px;
-      border-radius: 50%;
+      width: 38px; height: 38px;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      background: rgba(19,23,32,0.85);
+      background: rgba(17,21,31,0.78);
       color: var(--text);
-      font-size: 1.3rem;
+      font-size: 1rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -175,16 +351,17 @@
       border-color: var(--accent);
     }
 
-    /* Webhook config (gizli panel) */
+    /* ── Webhook config (gizli panel) ── */
     #config-panel {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(11,14,20,0.97);
+      background: rgba(6,8,13,0.97);
       z-index: 70;
       display: none;
       flex-direction: column;
       padding: 24px;
       gap: 16px;
+      overflow-y: auto;
     }
     #config-panel.visible { display: flex; }
     #config-panel h2 {
@@ -192,12 +369,15 @@
       font-size: 1.1rem;
     }
     #config-panel label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 6px;
     }
     #config-panel input, #config-panel select {
+      width: 100%;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -215,17 +395,24 @@
       font-weight: 700;
       font-size: 0.95rem;
     }
+    #config-panel button.secondary {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
     #config-panel .hint {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--muted);
       line-height: 1.5;
     }
 
-    /* Başlangıç ekranı */
+    /* ── Başlangıç ekranı ── */
     #start-screen {
       position: absolute; inset: 0;
       z-index: 60;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at 50% 30%, rgba(59,126,248,0.12), transparent 55%),
+        var(--bg);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -234,12 +421,34 @@
       text-align: center;
       padding: 24px;
     }
+    #start-screen .badge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    #start-screen .shield {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), #1a3a7a);
+      border-radius: 9px 9px 13px 13px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
     #start-screen h1 {
       font-family: 'JetBrains Mono', monospace;
       font-size: 1.4rem;
+      font-weight: 800;
     }
     #start-screen h1 span { color: #5b9bff; }
-    #start-screen p { color: var(--muted); font-size: 0.85rem; max-width: 320px; }
+    #start-screen .sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-top: -8px;
+    }
+    #start-screen p { color: var(--muted); font-size: 0.85rem; max-width: 320px; line-height: 1.5; }
     #start-btn {
       background: var(--accent);
       border: none;
@@ -250,22 +459,61 @@
       font-size: 1rem;
       margin-top: 10px;
     }
+    #start-error {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 8px;
+      max-width: 320px;
+    }
   </style>
 </head>
 <body>
 
 <div id="app">
   <video id="video" autoplay playsinline muted></video>
+  <div id="grid-overlay"></div>
   <div id="border-overlay"></div>
 
-  <div id="top-bar">
-    <div class="title">Plaka<span>Analiz</span> · CANLI</div>
-    <div id="status-dot"></div>
+  <div id="viewfinder">
+    <div class="vf-corner vf-tl"></div>
+    <div class="vf-corner vf-tr"></div>
+    <div class="vf-corner vf-bl"></div>
+    <div class="vf-corner vf-br"></div>
+    <div id="scan-line"></div>
+    <div id="vf-label">Plakayı çerçeve içine hizalayın</div>
   </div>
+
+  <div id="top-bar">
+    <div id="top-bar-row">
+      <div class="title">🛡️ Plaka<span class="brand-2">Analiz</span> · CANLI DENETİM</div>
+      <div id="live-clock">--:--:--</div>
+    </div>
+    <div id="status-row">
+      <div id="status-dot"></div>
+      <div id="status-text" style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.05em;">SİSTEM BEKLEMEDE</div>
+    </div>
+    <div id="stats-bar">
+      <div class="stat-chip">
+        <div class="num" id="stat-total">0</div>
+        <div class="lbl">Tarama</div>
+      </div>
+      <div class="stat-chip app-stat">
+        <div class="num" id="stat-app">0</div>
+        <div class="lbl">APP</div>
+      </div>
+      <div class="stat-chip std-stat">
+        <div class="num" id="stat-standart">0</div>
+        <div class="lbl">Standart</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="log-strip"></div>
 
   <div id="info-card">
     <div id="verdict-row">
       <div id="verdict-badge">— BEKLENİYOR —</div>
+      <div id="conf-badge">GÜVEN: —</div>
     </div>
     <div id="plaka-text">—</div>
     <div id="aciklama-text">Sistem hazır. Kamerayı plakaya doğrultun.</div>
@@ -278,13 +526,13 @@
 
   <!-- Config panel -->
   <div id="config-panel">
-    <h2>⚙️ Ayarlar</h2>
+    <h2>⚙️ Sistem Ayarları</h2>
     <div>
       <label>Webhook URL</label>
       <input type="text" id="webhook-url" placeholder="https://your-n8n.cloud/webhook/...">
     </div>
     <div>
-      <label>Tarama Aralığı (saniye)</label>
+      <label>Tarama Aralığı</label>
       <select id="interval-select">
         <option value="1500">1.5 sn (hızlı, daha çok istek)</option>
         <option value="3000" selected>3 sn (önerilen)</option>
@@ -304,16 +552,22 @@
       Gemini API limitlerine takılabilirsin.
     </p>
     <button id="save-config-btn">Kaydet ve Devam Et</button>
+    <button class="secondary" id="reset-stats-btn">İstatistikleri Sıfırla</button>
   </div>
 
   <!-- Start screen -->
   <div id="start-screen">
-    <h1>Plaka<span>Analiz</span> · Canlı</h1>
+    <div class="badge-row">
+      <div class="shield">🛡️</div>
+    </div>
+    <h1>Plaka<span>Analiz</span></h1>
+    <div class="sub">Canlı Denetim Modu</div>
     <p>
-      Kamerayı plakaya doğrult. Sistem belirli aralıklarla görüntüyü analiz eder.
-      APP plaka tespit edilirse ekran kenarı kırmızıya döner, standart plakada yeşile döner.
+      Kamerayı plakaya doğrult ve çerçeveye hizala. Sistem belirli aralıklarla
+      görüntüyü analiz eder; APP plaka tespit edilirse ekran kenarı kırmızıya,
+      standart plakada yeşile döner.
     </p>
-    <button id="start-btn">📷 Kamerayı Başlat</button>
+    <button id="start-btn">📷 Denetimi Başlat</button>
   </div>
 </div>
 
@@ -323,8 +577,12 @@
   const video        = document.getElementById('video');
   const canvas       = document.getElementById('capture-canvas');
   const borderOv     = document.getElementById('border-overlay');
+  const viewfinder   = document.getElementById('viewfinder');
+  const scanLine     = document.getElementById('scan-line');
   const statusDot    = document.getElementById('status-dot');
+  const statusText   = document.getElementById('status-text');
   const verdictBadge = document.getElementById('verdict-badge');
+  const confBadge    = document.getElementById('conf-badge');
   const plakaText    = document.getElementById('plaka-text');
   const aciklamaText = document.getElementById('aciklama-text');
   const pauseBtn     = document.getElementById('pause-btn');
@@ -334,8 +592,14 @@
   const intervalSel  = document.getElementById('interval-select');
   const cameraSel    = document.getElementById('camera-select');
   const saveConfigBtn= document.getElementById('save-config-btn');
+  const resetStatsBtn= document.getElementById('reset-stats-btn');
   const startScreen  = document.getElementById('start-screen');
   const startBtn     = document.getElementById('start-btn');
+  const liveClock    = document.getElementById('live-clock');
+  const logStrip     = document.getElementById('log-strip');
+  const statTotal    = document.getElementById('stat-total');
+  const statApp      = document.getElementById('stat-app');
+  const statStandart = document.getElementById('stat-standart');
 
   let stream = null;
   let loopTimer = null;
@@ -343,6 +607,16 @@
   let analyzing = false;
   let scanInterval = 3000;
   let facingMode = 'environment';
+  let stats = { total: 0, app: 0, standart: 0 };
+
+  // ── Saat ─────────────────────────────────────────────
+  function tickClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    liveClock.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
 
   // ── Ayarları yükle ──────────────────────────────────
   function loadConfig() {
@@ -354,6 +628,11 @@
     cameraSel.value = cam;
     scanInterval = parseInt(interval);
     facingMode = cam;
+
+    const savedStats = localStorage.getItem('pa_stats');
+    if (savedStats) {
+      try { stats = JSON.parse(savedStats); renderStats(); } catch {}
+    }
   }
 
   function saveConfig() {
@@ -366,7 +645,21 @@
       facingMode = newFacing;
       restartCamera();
     }
+    if (loopTimer) startLoop(); // yeni interval'i uygula
     configPanel.classList.remove('visible');
+  }
+
+  resetStatsBtn.addEventListener('click', () => {
+    stats = { total: 0, app: 0, standart: 0 };
+    localStorage.setItem('pa_stats', JSON.stringify(stats));
+    renderStats();
+    logStrip.innerHTML = '';
+  });
+
+  function renderStats() {
+    statTotal.textContent = stats.total;
+    statApp.textContent = stats.app;
+    statStandart.textContent = stats.standart;
   }
 
   // ── Kamera başlat ───────────────────────────────────
@@ -379,18 +672,17 @@
       }
 
       try {
-        // İlk deneme: tercih edilen kamera (telefon arka/ön kamera)
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
         });
       } catch (innerErr) {
-        // Fallback: kısıtlama olmadan herhangi bir kamera (PC webcam vb.)
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
 
       video.srcObject = stream;
       startScreen.style.display = 'none';
+      statusText.textContent = 'SİSTEM AKTİF · İLK TARAMA BEKLENİYOR';
       startLoop();
     } catch (err) {
       showStartError('Kamera açılamadı: ' + err.message);
@@ -402,10 +694,6 @@
     if (!el) {
       el = document.createElement('p');
       el.id = 'start-error';
-      el.style.color = '#f04d4d';
-      el.style.fontSize = '0.8rem';
-      el.style.marginTop = '8px';
-      el.style.maxWidth = '320px';
       startScreen.appendChild(el);
     }
     el.textContent = '⚠ ' + msg;
@@ -425,7 +713,7 @@
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, w, h);
     return new Promise(resolve => {
-      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
     });
   }
 
@@ -445,10 +733,12 @@
 
     analyzing = true;
     statusDot.className = 'scanning';
+    statusText.textContent = 'GÖRÜNTÜ ANALİZ EDİLİYOR...';
+    scanLine.classList.add('active');
 
     try {
       const blob = await captureFrame();
-      if (!blob) { analyzing = false; statusDot.className=''; return; }
+      if (!blob) { resetScanUI(); return; }
 
       const formData = new FormData();
       formData.append('plaka_resmi', blob, 'frame.jpg');
@@ -472,33 +762,74 @@
       const parsed = JSON.parse(raw);
       updateUI(parsed);
     } catch (e) {
-      statusDot.className = '';
+      statusText.textContent = '⚠ HATA: ' + e.message;
       aciklamaText.textContent = '⚠ Hata: ' + e.message;
+      statusDot.className = '';
     } finally {
       analyzing = false;
+      scanLine.classList.remove('active');
     }
+  }
+
+  function resetScanUI() {
+    analyzing = false;
+    statusDot.className = '';
+    scanLine.classList.remove('active');
   }
 
   function updateUI(d) {
     const durum = (d.durum || '').toString().toUpperCase().trim();
     plakaText.textContent = d.plaka || '—';
     aciklamaText.textContent = d.aciklama || '—';
+    confBadge.textContent = 'GÜVEN: ' + (d.guven_orani || '—');
+
+    stats.total++;
 
     if (durum === 'APP') {
       borderOv.className = 'app';
+      viewfinder.className = 'app';
       verdictBadge.className = 'app';
       verdictBadge.textContent = '🚨 APP PLAKA';
       statusDot.className = 'app';
+      statusText.textContent = '⚠ APP PLAKA TESPİT EDİLDİ';
+      stats.app++;
+      addLogChip('app', d.plaka || '—');
     } else if (durum === 'STANDART') {
       borderOv.className = 'standart';
+      viewfinder.className = 'standart';
       verdictBadge.className = 'standart';
       verdictBadge.textContent = '✅ STANDART';
       statusDot.className = 'standart';
+      statusText.textContent = 'STANDART PLAKA · DENETİM SÜRÜYOR';
+      stats.standart++;
+      addLogChip('standart', d.plaka || '—');
     } else {
       borderOv.className = '';
+      viewfinder.className = '';
       verdictBadge.className = '';
       verdictBadge.textContent = '— BELİRSİZ —';
       statusDot.className = '';
+      statusText.textContent = 'BELİRSİZ SONUÇ · TEKRAR TARANIYOR';
+    }
+
+    renderStats();
+    localStorage.setItem('pa_stats', JSON.stringify(stats));
+  }
+
+  function addLogChip(type, plaka) {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const chip = document.createElement('div');
+    chip.className = 'log-chip ' + type;
+    chip.innerHTML = `<span class="dot"></span><span>${plaka}</span><span class="time">${time}</span>`;
+
+    logStrip.insertBefore(chip, logStrip.firstChild);
+
+    // En fazla 12 kayıt göster
+    while (logStrip.children.length > 12) {
+      logStrip.removeChild(logStrip.lastChild);
     }
   }
 
@@ -507,7 +838,13 @@
     paused = !paused;
     pauseBtn.textContent = paused ? '▶' : '⏸';
     pauseBtn.classList.toggle('active', paused);
-    if (paused) statusDot.className = '';
+    if (paused) {
+      statusDot.className = '';
+      statusText.textContent = 'DENETİM DURAKLATILDI';
+      scanLine.classList.remove('active');
+    } else {
+      statusText.textContent = 'SİSTEM AKTİF';
+    }
   });
 
   settingsBtn.addEventListener('click', () => {
@@ -519,14 +856,15 @@
   startBtn.addEventListener('click', () => {
     if (!webhookInput.value.trim() && !localStorage.getItem('pa_webhook')) {
       configPanel.classList.add('visible');
-      saveConfigBtn.textContent = 'Kaydet ve Kamerayı Başlat';
-      saveConfigBtn.onclick = () => { saveConfig(); startCamera(); saveConfigBtn.onclick = saveConfig; };
+      saveConfigBtn.textContent = 'Kaydet ve Denetimi Başlat';
+      saveConfigBtn.onclick = () => { saveConfig(); startCamera(); saveConfigBtn.onclick = saveConfig; saveConfigBtn.textContent = 'Kaydet ve Devam Et'; };
     } else {
       startCamera();
     }
   });
 
   loadConfig();
+  renderStats();
 </script>
 </body>
 </html>

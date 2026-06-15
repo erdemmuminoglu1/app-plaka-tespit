@@ -581,23 +581,97 @@ function stopCaptureLoop() {
   if (captureTimer) { clearInterval(captureTimer); captureTimer = null; }
 }
 
+// ── PLAKA TESPİT (kenar + dikdörtgen analizi) ──
+function detectPlateCandidate(video) {
+  // Küçük bir detect canvas kullan (hız için)
+  const dc = document.createElement('canvas');
+  const scale = 0.25;
+  dc.width = Math.floor(video.videoWidth * scale);
+  dc.height = Math.floor(video.videoHeight * scale);
+  const ctx = dc.getContext('2d');
+  ctx.drawImage(video, 0, 0, dc.width, dc.height);
+
+  const imageData = ctx.getImageData(0, 0, dc.width, dc.height);
+  const data = imageData.data;
+  const w = dc.width, h = dc.height;
+
+  // Gri tonlamaya çevir + kontrast hesapla
+  const gray = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = (data[i*4] * 0.299 + data[i*4+1] * 0.587 + data[i*4+2] * 0.114);
+  }
+
+  // Yatay kenar yoğunluğu: plaka yatay kontrast çizgiler içerir
+  // Görüntüyü yatay şeritler halinde tara, yüksek kontrast olan şeritleri say
+  const stripeH = Math.max(2, Math.floor(h / 20));
+  let highContrastStripes = 0;
+  let totalStripes = 0;
+
+  for (let y = stripeH; y < h - stripeH; y += stripeH) {
+    let rowContrast = 0;
+    for (let x = 1; x < w - 1; x++) {
+      const diff = Math.abs(gray[y * w + x] - gray[y * w + x - 1]);
+      rowContrast += diff;
+    }
+    rowContrast /= (w - 2);
+    totalStripes++;
+    if (rowContrast > 12) highContrastStripes++; // eşik
+  }
+
+  const contrastRatio = highContrastStripes / totalStripes;
+
+  // Orta bölgede (kamera çerçevesi içi) parlak dikdörtgen var mı?
+  // Plakalar genelde beyaz/sarı zemin — yüksek parlaklık bölgesi ara
+  const midY1 = Math.floor(h * 0.3), midY2 = Math.floor(h * 0.7);
+  const midX1 = Math.floor(w * 0.1), midX2 = Math.floor(w * 0.9);
+  let brightCount = 0, totalMid = 0;
+  for (let y = midY1; y < midY2; y++) {
+    for (let x = midX1; x < midX2; x++) {
+      totalMid++;
+      if (gray[y * w + x] > 160) brightCount++;
+    }
+  }
+  const brightRatio = brightCount / totalMid;
+
+  // Karar: yüksek yatay kontrast VE parlak bölge varsa plaka adayı
+  return contrastRatio > 0.35 && brightRatio > 0.15;
+}
+
 function captureFrame() {
-  if (queue.length >= maxQueue) return; // queue full, skip
+  if (queue.length >= maxQueue) return;
 
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   if (!video.videoWidth) return;
 
+  // Plaka adayı tespiti
+  const hasPlateCandidate = detectPlateCandidate(video);
+
+  // Tespit göstergesi güncelle
+  const guide = document.getElementById('camGuide');
+  if (!hasPlateCandidate) {
+    guide.textContent = '🔍 PLAKA ARANIY OR...';
+    guide.style.color = 'rgba(200,208,224,0.5)';
+    return; // Plaka yoksa gönderme
+  }
+
+  guide.textContent = '✓ PLAKA ALGILANDI — ANALİZ EDİLİYOR';
+  guide.style.color = 'rgba(59,126,248,0.9)';
+  setTimeout(() => {
+    guide.textContent = 'PLAKAY I ÇERÇEVE İÇİNE ALIN';
+    guide.style.color = 'rgba(200,208,224,0.7)';
+  }, 2000);
+
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
 
-  // Show capture flash
+  // Capture flash
   const flash = document.getElementById('captureFlash');
   flash.classList.add('blink');
   setTimeout(() => flash.classList.remove('blink'), 120);
 
-  // Show thumbnail preview
+  // Thumbnail preview
   const thumbUrl = canvas.toDataURL('image/jpeg', 0.5);
   const thumb = document.getElementById('thumbPreview');
   const thumbImg = document.getElementById('thumbImg');

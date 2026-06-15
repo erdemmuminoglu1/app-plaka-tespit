@@ -793,8 +793,7 @@ function togglePause() {
   if (paused) {
     btn.textContent = '▶ DEVAM';
     btn.classList.add('active');
-    queue = [];
-    updateQueueUI();
+    // kuyruk temizlenmiyor — mevcut işlemler biter
   } else {
     btn.textContent = '⏸ DURAKLAT';
     btn.classList.remove('active');
